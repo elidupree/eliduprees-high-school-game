@@ -361,7 +361,10 @@ could use pushState to put the game state in the url bar in a way where reloadin
 
 
 
+ /* what if color of status box border depended on mood */
 
+
+// what if choices emit a [actor, location, what-you-did-tag]
 
 
     //game_state.current_event = game_state.todo.pop();

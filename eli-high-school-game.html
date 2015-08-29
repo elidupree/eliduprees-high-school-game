@@ -75,15 +75,7 @@ function assert(x) {
 }
 
 window.Eli = {};
-//Eli.all_possible_traits = {
 Eli.traits = {
-  /*daydream: {
-    when: true,
-    tags: ['daydream'],
-    description: "You can daydream whenever you want.",
-    choice: "daydream",
-    do: function() {}
-  },*/
   daydream: {
     //when: true,
     description: "You can daydream whenever you want.",
@@ -94,24 +86,7 @@ Eli.traits = {
         dilemma.actor.messages.push("You daydream about popsicles.");
       }
     }
-  },/*
-  daydream: {
-    when: true,
-    description: "You can daydream whenever you want.",
-    choice: function() {return [
-      {description: "daydream", tags: ['daydream'], do: function() {}}
-    ]}
-  },*/
-  // when in the same place as ______, you can ask them out
-  /*ask_out: function(who) {
-    return {
-      when: null,
-      tags: ['romance'],
-      description: "ask out " + who,
-      do: function() {
-      }
-    }
-  },*/
+  },
   video_gaming: function() { return {
     //when: 'at_home',
     description: "When you're at home, you can play video games.",
@@ -214,7 +189,6 @@ function get_trait_choices(dilemma, trait) {
   return c;
 }
 
-//function what_can_you_do(actor) {
 function get_character_choices(dilemma) {
   return _.flatten(_.map(dilemma.actor.traits, function(t) {
     return get_trait_choices(dilemma, look_up_trait(t));
@@ -227,9 +201,6 @@ Eli.game_state = {
   characters: [] // order doesn't matter?
 };
 var game_state = Eli.game_state;
-
-//    Eli.traits.ask_out(James)
-//    ['ask_out', James]
 
 var Bob = {
   traits: [
@@ -378,11 +349,6 @@ Eli.status_area = function(character) {
   );
 };
 
-
-
-// what if choices emit a [actor, location, what-you-did-tag]
-
-
 function possibly_go_to_the_next_phase() {
   if(game_state.todo.length === 0) {
     game_state.phase += 1;
@@ -429,7 +395,6 @@ function make_choice_automatically(dilemma) {
   }
 }
 
-
 function get_to_the_next_point_where_a_player_character_has_a_choice() {
   while(true) {
     possibly_go_to_the_next_phase();
@@ -443,7 +408,6 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
   var $vp = $('#player_viewport');
   var $old_status_area = $('#player_viewport .status-area:not(.old-status-area)').detach();
   $vp.empty();
-  // if not the first turn, $vp.append($('<h2/>').text("Congratulations on your choice.");
   var dilemma = current_dilemma();
   $old_status_area.addClass('old-status-area');
   var $new_status_area = Eli.status_area(dilemma.actor);
