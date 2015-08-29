@@ -90,8 +90,8 @@ Eli.traits = {
     choice: {
       name: "daydream",
       tags: ['daydream'],
-      do: function(event) {
-        event.actor.messages.push("You daydream about popsicles.");
+      do: function(dilemma) {
+        dilemma.actor.messages.push("You daydream about popsicles.");
       }
     }
   },/*
@@ -115,13 +115,13 @@ Eli.traits = {
   video_gaming: function() { return {
     //when: 'at_home',
     description: "When you're at home, you can play video games.",
-    choice: function(event) {
-      if(event.actor.location === 'home') { return {
+    choice: function(dilemma) {
+      if(dilemma.actor.location === 'home') { return {
         name: "play video games",
         tags: ['video_games'],
-        do: function(event) {
+        do: function(dilemma) {
           var score = (Math.round(Math.pow(1.03, _.random(2, 1000))) + 2);
-          event.actor.messages.push("You score " + score + " points!");
+          dilemma.actor.messages.push("You score " + score + " points!");
         }
       }; }
     }
@@ -129,36 +129,36 @@ Eli.traits = {
   video_gaming_affects_your_status: function(status_id_to_buff, amount) { return {
     description: ("When you play video games, you feel more " + status_id_to_buff
        + ". " + Eli.status_buff_symbols(status_id_to_buff, amount)),
-    effect: function(event, choice) {
+    effect: function(dilemma, choice) {
       if(_.contains(choice.tags, 'video_games')) {
-        increment_status(event.actor, status_id_to_buff, amount);
-        event.actor.messages.push("You feel more " + status_id_to_buff + "! " +
+        increment_status(dilemma.actor, status_id_to_buff, amount);
+        dilemma.actor.messages.push("You feel more " + status_id_to_buff + "! " +
           Eli.status_buff_symbols(status_id_to_buff, amount));
       }
     }
   };},
   go_to_school: {
     description: "You can go to school [during school hours?].",
-    choice: function(event) {
-      if(event.actor.location !== 'school') { return {
+    choice: function(dilemma) {
+      if(dilemma.actor.location !== 'school') { return {
         name: "go to school",
         tags: ['go', 'go_to_school'],
-        do: function(event) {
-          event.actor.location = 'school';
-          event.actor.messages.push("You take the bus to school.");
+        do: function(dilemma) {
+          dilemma.actor.location = 'school';
+          dilemma.actor.messages.push("You take the bus to school.");
         }
       }; }
     }
   },
   go_to_home: {
     description: "You can go home.",
-    choice: function(event) {
-      if(event.actor.location !== 'home') { return {
+    choice: function(dilemma) {
+      if(dilemma.actor.location !== 'home') { return {
         name: "go home",
         tags: ['go', 'go_home'],
-        do: function(event) {
-          event.actor.location = 'home';
-        event.actor.messages.push("You walk home.");
+        do: function(dilemma) {
+          dilemma.actor.location = 'home';
+        dilemma.actor.messages.push("You walk home.");
         }
       }; }
     }
@@ -169,8 +169,8 @@ Eli.traits = {
       instant: true,
       name: "swear",
       tags: ['swear'],
-      do: function(event) {
-        event.actor.messages.push("Fuck!");
+      do: function(dilemma) {
+        dilemma.actor.messages.push("Fuck!");
       }
     }
   },
@@ -194,13 +194,13 @@ function look_up_trait(name_and_args) {
   return t;
 }
 // only the choices that are applicable right now
-function get_trait_choices(event, trait) {
+function get_trait_choices(dilemma, trait) {
   if (!trait.choice) {
     return [];
   }
   var c = trait.choice;
   if (_.isFunction(c)) {
-    c = c(event);
+    c = c(dilemma);
   }
   if (!c) {
     c = [];
@@ -209,15 +209,15 @@ function get_trait_choices(event, trait) {
     c = [c];
   }
   c = _.filter(c, function(choice) {
-    return !event.already_tried[choice.name];
+    return !dilemma.already_tried[choice.name];
   });
   return c;
 }
 
 //function what_can_you_do(actor) {
-function get_character_choices(event) {
-  return _.flatten(_.map(event.actor.traits, function(t) {
-    return get_trait_choices(event, look_up_trait(t));
+function get_character_choices(dilemma) {
+  return _.flatten(_.map(dilemma.actor.traits, function(t) {
+    return get_trait_choices(dilemma, look_up_trait(t));
   }), true);
 }
 
@@ -392,40 +392,40 @@ function possibly_go_to_the_next_phase() {
   }
 }
 
-function current_event() {
+function current_dilemma() {
   return _.last(game_state.todo);
 }
 
-function event_requires_player_input(event) {
+function dilemma_requires_player_input(dilemma) {
   return true;
 }
 
 // returns true if succeeded
-function try_to_make_choice(event, choice) {
+function try_to_make_choice(dilemma, choice) {
   // check patterns to see if choice works [for now, always]
   // apply any effects that were triggered by simply making the choice (before do()?)
   var succeeded = true;
-  event.already_tried[choice.name] = true;
+  dilemma.already_tried[choice.name] = true;
   if (succeeded) {
     if(!choice.instant) {
-      var e = game_state.todo.pop(); assert(e == event);
+      var d = game_state.todo.pop(); assert(d == dilemma);
     }
-    choice.do(event);
-    _.each(event.actor.traits, function(t) {
+    choice.do(dilemma);
+    _.each(dilemma.actor.traits, function(t) {
       var trait = look_up_trait(t);
       if(trait.effect) {
-        trait.effect(event, choice);
+        trait.effect(dilemma, choice);
       }
     });
   }
   return succeeded;
 }
 
-function make_choice_automatically(event) {
+function make_choice_automatically(dilemma) {
   // check patterns to see if choice works
   // apply any effects that were triggered by simply making the choice (before do()?)
-  if (!try_to_make_choice(event, _.sample(get_character_choices(event)))) {
-    game_state.todo.push(event);
+  if (!try_to_make_choice(dilemma, _.sample(get_character_choices(dilemma)))) {
+    game_state.todo.push(dilemma);
   }
 }
 
@@ -434,35 +434,35 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
   while(true) {
     possibly_go_to_the_next_phase();
     assert(game_state.todo.length > 0);
-    if(event_requires_player_input(current_event())) {
+    if(dilemma_requires_player_input(current_dilemma())) {
       break;
     } else {
-      make_choice_automatically(current_event());
+      make_choice_automatically(current_dilemma());
     }
   }
   var $vp = $('#player_viewport');
   var $old_status_area = $('#player_viewport .status-area:not(.old-status-area)').detach();
   $vp.empty();
   // if not the first turn, $vp.append($('<h2/>').text("Congratulations on your choice.");
-  var event = current_event();
+  var dilemma = current_dilemma();
   $old_status_area.addClass('old-status-area');
-  var $new_status_area = Eli.status_area(event.actor);
+  var $new_status_area = Eli.status_area(dilemma.actor);
   var $status_area_wrapper = $('<div/>').addClass('status-area-wrapper').append($old_status_area, $new_status_area);
   $new_status_area.css({opacity: 0}).animate({opacity: 1}, function() { $old_status_area.remove(); });
   $vp.append($status_area_wrapper);
   var $main = $('<div/>').css({opacity: 0}).animate({opacity: 1});
-  _.each(event.actor.messages, function(message) {
+  _.each(dilemma.actor.messages, function(message) {
     $main.append($('<p/>').html(Eli.check_message_html(message)));
   });
   $main.append($('<p/>').addClass('description-preceding-choice').text("You have a choice!!!!!"));
-  _.each(get_character_choices(event), function(choice) {
+  _.each(get_character_choices(dilemma), function(choice) {
     $main.append($('<a/>').addClass('choice').attr('href', '#javascript').text(choice.name).on('click', function(e) {
       e.stopPropagation();
       e.preventDefault();
       // should this happen always? or just on success
-      Array.prototype.push.apply(event.actor.old_messages, event.actor.messages);
-      event.actor.messages = [];
-      var succeeded = try_to_make_choice(event, choice);
+      Array.prototype.push.apply(dilemma.actor.old_messages, dilemma.actor.messages);
+      dilemma.actor.messages = [];
+      var succeeded = try_to_make_choice(dilemma, choice);
       get_to_the_next_point_where_a_player_character_has_a_choice();
     }));
   });
