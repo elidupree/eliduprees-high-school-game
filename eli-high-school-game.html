@@ -51,6 +51,9 @@ a.choice {
 .status-bar {
   font-family: monospace;
 }
+.trait-list {
+  margin-top: 1em;
+}
 .example-symbol {
   opacity: 0.3;
 }
@@ -125,7 +128,7 @@ Eli.traits = {
   };},
   video_gaming_affects_your_status: function(status_id_to_buff, amount) { return {
     description: ("When you play video games, you feel more " + status_id_to_buff
-       + " " + Eli.status_buff_symbols(status_id_to_buff, amount)),
+       + ". " + Eli.status_buff_symbols(status_id_to_buff, amount)),
     effect: function(event, choice) {
       if(_.contains(choice.tags, 'video_games')) {
         increment_status(event.actor, status_id_to_buff, amount);
@@ -364,9 +367,14 @@ Eli.status_area = function(character) {
       $status_bars.append($('<div/>').append(Eli.status_bar(character, general_status_type)));
     }
   }
+  var $traits = $('<div/>').addClass('trait-list');
+  _.each(_.map(character.traits, look_up_trait), function(trait) {
+    $traits.append($('<p/>').html(Eli.check_message_html(trait.description)));
+  });
   return $('<div/>').addClass('status-area').append(
     $status_bars,
-    $('<p/>').text("You are at " + character.location + '.')
+    $('<p/>').text("You are at " + character.location + '.'),
+    $traits
   );
 };
 
