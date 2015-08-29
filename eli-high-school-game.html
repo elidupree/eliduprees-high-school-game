@@ -34,7 +34,7 @@ a.choice {
 }
 .status-area {
   padding: 1em;
-  border: 2px solid green; /* what if color depended on mood */
+  border: 2px solid green;
   font-size: 0.8em;
   width: 19.3em;
   background-color: #fff;
@@ -77,7 +77,6 @@ function assert(x) {
 window.Eli = {};
 Eli.traits = {
   daydream: {
-    //when: true,
     description: "You can daydream whenever you want.",
     choice: {
       name: "daydream",
@@ -88,7 +87,6 @@ Eli.traits = {
     }
   },
   video_gaming: function() { return {
-    //when: 'at_home',
     description: "When you're at home, you can play video games.",
     choice: function(dilemma) {
       if(dilemma.actor.location === 'home') { return {
