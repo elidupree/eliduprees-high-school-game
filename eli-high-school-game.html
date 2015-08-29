@@ -25,7 +25,7 @@ a.choice {
   display: block;
   margin: 1em 1em;
 }
-.description-preceding-choice {
+.description-of-dilemma {
   margin: 1em 0;
 }
 .status-area-wrapper {
@@ -78,7 +78,7 @@ window.Eli = {};
 Eli.traits = {
   daydream: {
     description: "You can daydream whenever you want.",
-    choice: {
+    choices: {
       name: "daydream",
       tags: ['daydream'],
       do: function(dilemma) {
@@ -88,7 +88,7 @@ Eli.traits = {
   },
   video_gaming: function() { return {
     description: "When you're at home, you can play video games.",
-    choice: function(dilemma) {
+    choices: function(dilemma) {
       if(dilemma.actor.location === 'home') { return {
         name: "play video games",
         tags: ['video_games'],
@@ -112,7 +112,7 @@ Eli.traits = {
   };},
   go_to_school: {
     description: "You can go to school [during school hours?].",
-    choice: function(dilemma) {
+    choices: function(dilemma) {
       if(dilemma.actor.location !== 'school') { return {
         name: "go to school",
         tags: ['go', 'go_to_school'],
@@ -125,7 +125,7 @@ Eli.traits = {
   },
   go_to_home: {
     description: "You can go home.",
-    choice: function(dilemma) {
+    choices: function(dilemma) {
       if(dilemma.actor.location !== 'home') { return {
         name: "go home",
         tags: ['go', 'go_home'],
@@ -138,7 +138,7 @@ Eli.traits = {
   },
   swear: {
     description: "You can swear whenever you want.",
-    choice: {
+    choices: {
       instant: true,
       name: "swear",
       tags: ['swear'],
@@ -168,10 +168,10 @@ function look_up_trait(name_and_args) {
 }
 // only the choices that are applicable right now
 function get_trait_choices(dilemma, trait) {
-  if (!trait.choice) {
+  if (!trait.choices) {
     return [];
   }
-  var c = trait.choice;
+  var c = trait.choices;
   if (_.isFunction(c)) {
     c = c(dilemma);
   }
@@ -416,7 +416,7 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
   _.each(dilemma.actor.messages, function(message) {
     $main.append($('<p/>').html(Eli.check_message_html(message)));
   });
-  $main.append($('<p/>').addClass('description-preceding-choice').text("You have a choice!!!!!"));
+  $main.append($('<p/>').addClass('description-of-dilemma').text("You have a choice!!!!!"));
   _.each(get_character_choices(dilemma), function(choice) {
     $main.append($('<a/>').addClass('choice').attr('href', '#javascript').text(choice.name).on('click', function(e) {
       e.stopPropagation();
