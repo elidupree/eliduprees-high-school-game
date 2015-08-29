@@ -21,15 +21,29 @@ html {
   max-width: 30em;
   margin: 1em auto;
 }
-#player_viewport > a {
+a.choice {
   display: block;
   margin: 1em 1em;
 }
-.status-area {
+.description-preceding-choice {
+  margin: 1em 0;
+}
+.status-area-wrapper {
   float: right;
+  position: relative;
+}
+.status-area {
   padding: 1em;
   border: 2px solid green; /* what if color depended on mood */
   font-size: 0.8em;
+  width: 19.3em;
+  background-color: #fff;
+  position: relative;
+}
+.old-status-area {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 .status-bars {
   margin-bottom: 0.8em;
@@ -107,6 +121,17 @@ Eli.traits = {
           event.actor.messages.push("You score " + score + " points!");
         }
       }; }
+    }
+  };},
+  video_gaming_affects_your_status: function(status_id_to_buff, amount) { return {
+    description: ("When you play video games, you feel more " + status_id_to_buff
+       + " " + Eli.status_buff_symbols(status_id_to_buff, amount)),
+    effect: function(event, choice) {
+      if(_.contains(choice.tags, 'video_games')) {
+        increment_status(event.actor, status_id_to_buff, amount);
+        event.actor.messages.push("You feel more " + status_id_to_buff + "! " +
+          Eli.status_buff_symbols(status_id_to_buff, amount));
+      }
     }
   };},
   go_to_school: {
@@ -207,6 +232,7 @@ var Bob = {
   traits: [
     'daydream',
     'video_gaming',
+    ['video_gaming_affects_your_status', 'confident'],
     'swear',
     'go_to_school',
     'go_to_home'
@@ -221,34 +247,50 @@ var Bob = {
 };
 game_state.characters.push(Bob);
 
+
+// Make sure save games can't run scripts or stuff.
+// The result of this function will be passed to
+// innerHTML= or more specifically,
+// $(...).html(Eli.check_message_html(....))
+Eli.check_message_html = function(message) {
+  if(!/^([^<>&]*(&lt;|&gt;|&amp;|&quot;|<span( style="((color|background-color): [a-zA-Z0-9#%() ,]*(;|(?= *")) *)*")?>|<\/span>))*[^<>&]*$/.test(message)) {
+    throw "Uncheckable message: " + message;
+  }
+  return message;
+}
+
 Eli.symbol = function(text_content, text_color, background_color) {
   return $('<span/>').css({
       "color": text_color,
       "background-color": background_color
     }).text(text_content).prop('outerHTML');
 };
+Eli.status_buff_symbols = function(status_id_to_buff, amount) {
+  if(amount === undefined) { amount = 1; }
+  return Eli.status_types[status_id_to_buff].symbol.repeat(amount);
+}
 Eli.status_max = 3;
 Eli.neutral_status_symbol = Eli.symbol('0', '#bbb', '#555');
 Eli.general_status_types_list = [{
     id: 'confidence',
     positive: {
         name: "confident",
-        symbol: Eli.symbol('+', 'white', 'blue')
+        symbol: Eli.symbol('+', '#fff', '#00f')
     },
     negative: {
         name: "crushed",
-        symbol: Eli.symbol('-', 'blue', 'black')
+        symbol: Eli.symbol('-', '#00f', '#000')
     }
   },
   {
     id: 'excitement',
     positive: {
       name: "excited",
-      symbol: Eli.symbol('!', 'yellow', 'red')
+      symbol: Eli.symbol('!', '#ff0', '#f00')
     },
     negative: {
       name: "calm",
-      symbol: Eli.symbol('~', 'blue', '#ccf')
+      symbol: Eli.symbol('~', '#00f', '#ccf')
     }
   }
 ];
@@ -275,10 +317,18 @@ function get_status(character, status_name) {
   return character.status[status_type.general.id] * status_type.sign;
 }
 function set_status(character, status_name, value) {
-  assert(Math.round(value) === value && Math.abs(value) < Eli.status_max);
+  assert(Math.round(value) === value && Math.abs(value) <= Eli.status_max);
   var status_type = Eli.status_types[status_name];
   character.status[status_type.general.id] = value * status_type.sign;
   assert(get_status(character, status_name) === value);
+}
+function increment_status(character, status_name, amount) {
+  if(amount === undefined) { amount = 1; }
+  assert(Math.round(amount) === amount && amount > 0);
+  var old_value = get_status(character, status_name);
+  var new_value = Math.min(old_value + amount, Eli.status_max);
+  set_status(character, status_name, new_value);
+  return new_value - old_value;
 }
 
 // assumes monospace
@@ -353,6 +403,12 @@ function try_to_make_choice(event, choice) {
       var e = game_state.todo.pop(); assert(e == event);
     }
     choice.do(event);
+    _.each(event.actor.traits, function(t) {
+      var trait = look_up_trait(t);
+      if(trait.effect) {
+        trait.effect(event, choice);
+      }
+    });
   }
   return succeeded;
 }
@@ -377,25 +433,32 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
     }
   }
   var $vp = $('#player_viewport');
+  var $old_status_area = $('#player_viewport .status-area:not(.old-status-area)').detach();
   $vp.empty();
   // if not the first turn, $vp.append($('<h2/>').text("Congratulations on your choice.");
   var event = current_event();
-  $vp.append(Eli.status_area(event.actor));
+  $old_status_area.addClass('old-status-area');
+  var $new_status_area = Eli.status_area(event.actor);
+  var $status_area_wrapper = $('<div/>').addClass('status-area-wrapper').append($old_status_area, $new_status_area);
+  $new_status_area.css({opacity: 0}).animate({opacity: 1}, function() { $old_status_area.remove(); });
+  $vp.append($status_area_wrapper);
+  var $main = $('<div/>').css({opacity: 0}).animate({opacity: 1});
   _.each(event.actor.messages, function(message) {
-    $vp.append($('<p/>').text(message));
+    $main.append($('<p/>').html(Eli.check_message_html(message)));
   });
-  $vp.append($('<h2/>').text("You have a choice!!!!!"));
+  $main.append($('<p/>').addClass('description-preceding-choice').text("You have a choice!!!!!"));
   _.each(get_character_choices(event), function(choice) {
-    $vp.append($('<a/>').attr('href', '#javascript').text(choice.name).css({opacity: 0}).animate({opacity: 1}).on('click', function(e) {
+    $main.append($('<a/>').addClass('choice').attr('href', '#javascript').text(choice.name).on('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
       // should this happen always? or just on success
       Array.prototype.push.apply(event.actor.old_messages, event.actor.messages);
       event.actor.messages = [];
       var succeeded = try_to_make_choice(event, choice);
       get_to_the_next_point_where_a_player_character_has_a_choice();
-      e.stopPropagation();
-      e.preventDefault();
     }));
   });
+  $vp.append($main);
 }
 
 get_to_the_next_point_where_a_player_character_has_a_choice();
