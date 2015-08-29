@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>High School Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<style>
+/* CSS reset */
+article,aside,figure,footer,header,hgroup,menu,nav,section { display:block; }
+body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,
+  legend,input,button,textarea,select,p,blockquote,th,td{margin:0;padding:0}
+h1,h2,h3,h4,h5,h6 {font-size: 100%;font-weight: inherit;}
+img {color: transparent; font-size: 0; border: 0; vertical-align: middle;
+     -ms-interpolation-mode: bicubic;}
+
+html, body {
+  font-size: 30px;
+}
+
+/* Eli's CSS can go here */
+.feeling-bar {
+  font-family: monospace;
+}
+#player_viewport {
+  max-width: 700px;
+  margin: 1em auto;
+}
+#player_viewport > a {
+  display: block;
+  margin: 1em 1em;
+}
+.status-area {
+  float: right;
+  padding: 1em;
+  border: 2px solid green; /* what if color depended on mood */
+}
+</style>
+</head>
+<body>
+<div id="player_viewport">
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script>
+(function () {
+"use strict";
+
+function assert(x) {
+  if(!x) {
+    throw 'error!';
+  }
+}
+
+window.Eli = {};
+//Eli.all_possible_traits = {
+Eli.traits = {
+  /*daydream: {
+    when: true,
+    tags: ['daydream'],
+    description: "You can daydream whenever you want.",
+    choice: "daydream",
+    do: function() {}
+  },*/
+  daydream: {
+    //when: true,
+    description: "You can daydream whenever you want.",
+    choice: {
+      name: "daydream",
+      tags: ['daydream'],
+      do: function(event) {
+        event.actor.messages.push("You daydream about popsicles.");
+      }
+    }
+  },/*
+  daydream: {
+    when: true,
+    description: "You can daydream whenever you want.",
+    choice: function() {return [
+      {description: "daydream", tags: ['daydream'], do: function() {}}
+    ]}
+  },*/
+  // when in the same place as ______, you can ask them out
+  /*ask_out: function(who) {
+    return {
+      when: null,
+      tags: ['romance'],
+      description: "ask out " + who,
+      do: function() {
+      }
+    }
+  },*/
+  video_gaming: function() { return {
+    //when: 'at_home',
+    description: "When you're at home, you can play video games.",
+    choice: function(event) {
+      if(event.actor.location === 'home') { return {
+        name: "play video games",
+        tags: ['video_games'],
+        do: function(event) {
+          var score = (Math.round(Math.pow(1.03, _.random(2, 1000))) + 2);
+          event.actor.messages.push("You score " + score + " points!");
+        }
+      }; }
+    }
+  };},
+  go_to_school: {
+    description: "You can go to school [during school hours?].",
+    choice: function(event) {
+      if(event.actor.location !== 'school') { return {
+        name: "go to school",
+        tags: ['go', 'go_to_school'],
+        do: function(event) {
+          event.actor.location = 'school';
+          event.actor.messages.push("You take the bus to school.");
+        }
+      }; }
+    }
+  },
+  go_to_home: {
+    description: "You can go home.",
+    choice: function(event) {
+      if(event.actor.location !== 'home') { return {
+        name: "go home",
+        tags: ['go', 'go_home'],
+        do: function(event) {
+          event.actor.location = 'home';
+        event.actor.messages.push("You walk home.");
+        }
+      }; }
+    }
+  },
+  swear: {
+    description: "You can swear whenever you want.",
+    choice: {
+      instant: true,
+      name: "swear",
+      tags: ['swear'],
+      do: function(event) {
+        event.actor.messages.push("Fuck!");
+      }
+    }
+  },
+  dud: null //just so we can put a comma after all real ones consistently
+};
+
+function look_up_trait(name_and_args) {
+  var name;
+  var args;
+  if (_.isString(name_and_args)) {
+    name = name_and_args;
+    args = [];
+  } else {
+    name = name_and_args[0];
+    args = _.rest(name_and_args);
+  }
+  var t = Eli.traits[name];
+  if (_.isFunction(t)) {
+    t = t.apply(null, args);
+  }
+  return t;
+}
+// only the choices that are applicable right now
+function get_trait_choices(event, trait) {
+  if (!trait.choice) {
+    return [];
+  }
+  var c = trait.choice;
+  if (_.isFunction(c)) {
+    c = c(event);
+  }
+  if (!c) {
+    c = [];
+  }
+  if (!_.isArray(c)) {
+    c = [c];
+  }
+  c = _.filter(c, function(choice) {
+    return !event.already_tried[choice.name];
+  });
+  return c;
+}
+
+//function what_can_you_do(actor) {
+function get_character_choices(event) {
+  return _.flatten(_.map(event.actor.traits, function(t) {
+    return get_trait_choices(event, look_up_trait(t));
+  }), true);
+}
+
+Eli.game_state = {
+  todo: [], // a stack that you push/pop on the end
+  phase: 0,
+  characters: [] // order doesn't matter?
+};
+var game_state = Eli.game_state;
+
+//    Eli.traits.ask_out(James)
+//    ['ask_out', James]
+
+var Bob = {
+  traits: [
+    'daydream',
+    'video_gaming',
+    'swear',
+    'go_to_school',
+    'go_to_home'
+  ],
+  location: 'school',
+  old_messages: [],
+  messages: []
+};
+game_state.characters.push(Bob);
+
+
+// what if choices emit a [actor, location, what-you-did-tag]
+
+
+function possibly_go_to_the_next_phase() {
+  if(game_state.todo.length === 0) {
+    game_state.phase += 1;
+    _.each(_.shuffle(game_state.characters), function(c) {
+      game_state.todo.push({ actor: c, already_tried: {}});
+    });
+  }
+}
+
+function current_event() {
+  return _.last(game_state.todo);
+}
+
+function event_requires_player_input(event) {
+  return true;
+}
+
+// returns true if succeeded
+function try_to_make_choice(event, choice) {
+  // check patterns to see if choice works [for now, always]
+  // apply any effects that were triggered by simply making the choice (before do()?)
+  var succeeded = true;
+  event.already_tried[choice.name] = true;
+  if (succeeded) {
+    if(!choice.instant) {
+      var e = game_state.todo.pop(); assert(e == event);
+    }
+    choice.do(event);
+  }
+  return succeeded;
+}
+
+function make_choice_automatically(event) {
+  // check patterns to see if choice works
+  // apply any effects that were triggered by simply making the choice (before do()?)
+  if (!try_to_make_choice(event, _.sample(get_character_choices(event)))) {
+    game_state.todo.push(event);
+  }
+}
+
+function status_area(character) {
+  return $('<div/>').addClass('status-area').append(
+    $('<p/>').text("You are at " + character.location + '.')
+  );
+}
+
+function get_to_the_next_point_where_a_player_character_has_a_choice() {
+  while(true) {
+    possibly_go_to_the_next_phase();
+    assert(game_state.todo.length > 0);
+    if(event_requires_player_input(current_event())) {
+      break;
+    } else {
+      make_choice_automatically(current_event());
+    }
+  }
+  var $vp = $('#player_viewport');
+  $vp.empty();
+  // if not the first turn, $vp.append($('<h2/>').text("Congratulations on your choice.");
+  var event = current_event();
+  _.each(event.actor.messages, function(message) {
+    $vp.append($('<p/>').text(message));
+  });
+  $vp.append(status_area(event.actor));
+  $vp.append($('<h2/>').text("You have a choice!!!!!"));
+  _.each(get_character_choices(event), function(choice) {
+    $vp.append($('<a/>').attr('href', '#javascript').text(choice.name).css({opacity: 0}).animate({opacity: 1}).on('click', function(e) {
+      // should this happen always? or just on success
+      Array.prototype.push.apply(event.actor.old_messages, event.actor.messages);
+      event.actor.messages = [];
+      var succeeded = try_to_make_choice(event, choice);
+      get_to_the_next_point_where_a_player_character_has_a_choice();
+      e.stopPropagation();
+      e.preventDefault();
+    }));
+  });
+}
+
+get_to_the_next_point_where_a_player_character_has_a_choice();
+
+})();
+</script>
+</body>
+</html>

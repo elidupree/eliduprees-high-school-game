@@ -1,0 +1,380 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>High School Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<style>
+/* Eli's CSS can go here */
+.feeling-bar {
+  font-family: monospace;
+}
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script>
+(function () {
+"use strict";
+window.Eli = {};
+Eli.phases = [{
+  school_time: true
+}, {
+  home_time: true
+}];
+Eli.symbol = function(text_content, text_color, background_color) {
+  return $('<span/>').css({
+      "color": text_color,
+      "background-color": background_color
+    }).text(text_content).prop('outerHTML');
+};
+Eli.feeling_max = 3;
+Eli.neutral_feeling_symbol = Eli.symbol('0', '#bbb', '#555');
+Eli.feelings_initializer = [{
+  id: "confidence",
+  positive: {
+    id: "confident",
+    name: "confident",
+    symbol: Eli.symbol('+', 'white', 'blue')
+  },
+  negative: {
+    id: "crushed",
+    name: "crushed",
+    symbol: Eli.symbol('-', 'blue', 'black')
+  }
+}];
+Eli.feelings_list = [];
+Eli.feelings = {};
+for (var i = 0; i < Eli.feelings_initializer.length; ++i) {
+  var feeling = Eli.feelings_initializer[i];
+  Eli.feelings_list.push(feeling.id);
+  Eli.feelings[feeling.id] = feeling;
+  Eli.feelings[feeling.positive.id] = feeling.positive;
+  Eli.feelings[feeling.negative.id] = feeling.negative;
+  feeling.positive.opposite = feeling.negative;
+  feeling.negative.opposite = feeling.positive;
+  feeling.positive.general = feeling;
+  feeling.negative.general = feeling;
+  feeling.positive.sign = 1;
+  feeling.negative.sign = -1;
+}
+
+Eli.ChoiceResultMarkup = '';
+
+Eli.characters = {};
+var make_character = function(character) {
+  Eli.characters[character.id] = character;
+  if (!character.feelings) {
+    character.feelings = {};
+  }
+  if (character.feelings_initializer) {
+    for (var i = 0; i < character.feelings_initializer.length; ++i) {
+      var feeling = Eli.feelings[character.feelings_initializer[i][0]];
+      character.feelings[feeling.general.id] = character.feelings_initializer[i][1] * feeling.sign;
+    }
+  }
+};
+for (var i = 0; i < 100; ++i) {
+  var character = {};
+  character.traits = [];
+  character.traits.push({
+    'type': 'choice',
+    'choice': {
+      aspects: {
+}
+make_character({
+  id: "aware",
+  feelings_initializer: [
+    ["crushed", 2]
+  ]
+});
+
+Eli.controlled_character = Eli.characters.aware;
+
+// assumes monospace
+Eli.pad_left = function(html_text, count, pad_character) {
+  var text_length = $('<div/>').html(html_text).text().length;
+  if (pad_character === undefined) { pad_character = '&nbsp;'; }
+  return (pad_character.repeat(count - text_length) + html_text);
+};
+Eli.pad_right = function(html_text, count, pad_character) {
+  var text_length = $('<div/>').html(html_text).text().length;
+  if (pad_character === undefined) { pad_character = '&nbsp;'; }
+  return (html_text + pad_character.repeat(count - text_length));
+};
+Eli.feeling_bar = function(character, feeling) {
+  var negative_points = Math.max(0, -character.feelings[feeling.id]);
+  var positive_points = Math.max(0, character.feelings[feeling.id]);
+  return ('<span class="feeling-bar">' +
+    Eli.pad_left(feeling.negative.name, 20) + ' ' + feeling.negative.symbol +
+    ' [' + Eli.pad_left(feeling.negative.symbol.repeat(negative_points), Eli.feeling_max) +
+    Eli.neutral_feeling_symbol +
+    Eli.pad_right(feeling.positive.symbol.repeat(positive_points), Eli.feeling_max) + '] ' +
+    feeling.positive.symbol + ' ' + Eli.pad_right(feeling.positive.name, 20) +
+    '</span>');
+}
+Eli.status_markup = function(character) {
+var parts = [];
+  for (var i = 0; i < Eli.feelings_list.length; ++i) {
+    if (character.feelings.hasOwnProperty(Eli.feelings_list[i])) {
+      parts.push(Eli.feeling_bar(character, Eli.feelings[Eli.feelings_list[i]]));
+    }
+  }
+  return parts.join("\n");
+}
+
+Eli.choose = function(event, choice) {
+  if (choice.patterns.length > 0) {
+    markup.push("You try to " + choice.name + ".");
+  } else {
+    markup.push("You " + choice.name + ".");
+  }
+  for (var i = 0; i < choice.patterns.length; ++i) {
+    var pattern = choice.patterns[i];
+    var feeling_id = pattern.feeling_id;
+    var feeling = Eli.feelings[feeling_id];
+    var base_score = event.character_choosing.feelings[feeling_id] * feeling.sign;
+    var bonus = 0;
+    markup.push(Eli.show_pattern(pattern) + ': current score ' + Eli.show_feeling(feeling_id, base_score) + ', random bonus ' + Eli.show_feeling(feeling_id, bonus));
+    var result;
+    if ( base_score + bonus >= pattern.threshold) {
+      result = pattern.yes;
+    } else {
+      result = pattern.no;
+    }
+    if (result === "fallback") {
+      if (choice !== event.default_choice) {
+        markup.push("You can't bring yourself to " + choice.name + ".\n");
+        Eli.choose(event.default_choice, player, markup);
+      } else {
+        markup.push("You don't feel like you can bring yourself to " + choice.name + ", but your other choices are even harder, so you do it anyway.");
+      }
+    }
+  }
+  if (player) {
+    Eli.ChoiceResultMarkup = markup.join("\n");
+
+
+  }
+};
+
+Eli.NextEvent = function() {
+  if (Eli.upcoming_events.length  best_value) {
+      best_value = value;
+      best_choice = choice;
+    
+  }
+  event.default_choice = best_choice;
+}
+
+Eli.ChoiceMarkup = function(choice) {
+
+  return '(link: "' + choice.name + '")[(print: Eli.PlayerMakesChoiceMarkup (' + choice.id + '))]'
+}
+
+Eli.EventMarkup = function(event) {
+  var parts = [];
+  parts.push(Eli.status_markup(Eli.controlled_character));
+  if (Eli.ChoiceResultMarkup) {
+    parts.push(Eli.ChoiceResultMarkup);
+  }
+  var i, choice;
+  for (i = 0; i < event.choices.length; ++i) {
+    choice = event.choices[i];
+    choice.id = i;
+    parts.push(Eli.ChoiceMarkup(choice))
+  }
+  return parts.join("\n\n");
+};
+
+Eli.PlayerMakesChoiceMarkup = function(choicenum) {
+  var choice = Eli.NextEvent().choices[choicenum];
+  Eli.choose(choice, true);
+  return '(goto: "Do next event")';
+};
+
+Eli.NextEventMarkup = function() {
+  while (true) {
+    var event = Eli.NextEvent();
+    if (event.character_choosing === Eli.controlled_character) {
+      var markup = Eli.EventMarkup(event);
+      console.log(markup);
+      return markup;
+    } else {
+      Eli.choose(event.default_choice);
+    }
+  }
+};
+})();
+</script>
+</body>
+</html>
+
+
+
+
+
+There are many characters (fictional people) in one run of this game
+
+There are phases (in sequence, forever unless the game ends for some reason like a fixed number of phases or death or whatever)
+They could be categorized in some sequence, for example alternating "school phase" and "home phase"
+
+in each phase each character gets a thing where they're presented with a choice (possibly followed up by other choices in the same phase) (choice could have only one option)
+
+(choices might happen in a random order different each phase for some sort of fairness)
+
+(one character's choice could affect another character's options, we guess)
+
+If a choice is presented to The Player Character, then the player chooses among the options
+If presented to an AI character, the AI makes the default choice
+(There is a "default choice")
+
+Each character has a bunch of traits
+Kinds of traits:
+  - Choice traits:
+       character gets a choice in a circumstance
+       "when you are at home, you can play video games"
+       has some categories so that pattern traits can decide whether they apply
+  - Pattern traits:
+       apply a pattern to some category of choices. example:
+       you need at least 2 "Confident" to criticize a peer (only affects something if that *was* a choice in the first place)
+  - Effect (was: Feeling) traits:
+       says how your feelings change when certain things happen
+       "When someone criticize you, you get more Confident"
+
+Things can "happen" through "choices" or "other reasons" (random events, whatever)
+
+Traits can be added or removed. (Some harder than others.) For example:
+- someone steals your XBox
+- one of your choice traits gives you the ability to lose/gain another trait.
+    "You know a really good therapist who works out for you
+    - go to therapist
+      - work on this trait
+      - work on that trait
+      - work on your anger
+      - work on how to get your xbox back
+    "
+(can change any of the kinds of traits)
+
+
+For now: everyone can daydream! as a possible choice.
+also: when you try something and fail then it fades out and you have to try choosing something else
+
+
+statuses: Confident/Crushed, Excited/Calm, Weak/Hale, Broke/????money, A+/F
+
+idea: not all traits displayed at first. display when they have any effect.
+
+"Instant" choices that you can choose and then choose another thing in the same sets
+
+swear / maintain composure
+think it over
+ignore it
+glare piercingly into the distance
+
+pressure level???
+
+
+
+things you might have:
+
+
+choice: whenever, you can daydream
+
+choice: when in school hours, you can go to school
+
+pattern: when not at school at the beginning of* school hours, every action other than going to school requires a lot of Confidence
+(* or during, but probably at the beginning of)
+
+choice: when in class, you can concentrate on class
+
+pattern: if Excited>1, you can't concentrate on class
+
+choice: when in class, you can cause trouble
+
+choice: when at home, you can play video games
+
+effect: when you try something and fail, your Confidence decreases
+
+effect: when you do something a friend advised you not to do, your Confidence decreases
+
+effect: when you play video games, your Confidence increases
+
+choice: when in the same place as ______, you can ask them out
+  (if you do, it adds a choice trait to them to respond in a few ways)
+  (if you do, it sets a "____ asked out _____" game state)
+  (if yuo do, it makes the next choice the game makes happen be asking the askee what happens. probably not as a replacement for their turn action but an additional thing, because their turn action might already have happened!)
+choice: when someone has asked you out, you can turn them down
+choice: when someone has asked you out, you can agree to go to coffee with them
+choice: when someone has asked you out, you can say YES I'LL BE YOUR GIRLFRIEND --- but if we have "no explicit dialog", then, you can say you'll be their personfriend
+
+choice: when you get a report card with a "D" or "F", you can swear out loud
+choice: when you get a report card with a "B", "C", "D" or "F", you can swear out loud
+effect: when you get a report card with a ____, your desire for independence goes up
+
+choice: when the assistant principal talks you you, you can suck up to them    (you can say Yes Sir)
+effect: when you are sent to see the assistant principal, your Excitement goes up
+
+choice: when you are going home from school, you can walk home (instead of taking the bus)
+effect: when you walk home from school, your Calm increases
+effect: when you walk, your Calm increases
+
+effect: when you pay attention in class, your grades increase
+
+effect: when you think about the fact that you're not dating anyone, you become more Crushed
+(is better than effect: whenever you're not dating someone, you become more Crushed)
+
+effect: when you daydream, you might think about who you are or are not dating (at weight 60)
+or----
+choice [for your subconcsious]: when you daydream, you think about who you are or are not dating
+effect: when you daydream during class, you think about your grades
+effect: when you daydream during class, you think about the great outdoors (especially if the classroom has a window, which it does)
+unconscious choice: when you daydream during class, you think about your grades, ("daydream" weight 30)
+unconsciuos choice: etc
+
+choice: when your rich parents go golfing, you can come along
+choice: when your rich parents go golfing, you can sulk at home
+
+(parents:
+choice: you can go golfing
+or:
+random event: ____'s parents go golfing 1 in 10 phases
+)
+
+random event: two random characters are in the same place this phase
+or:
+random event: if _____ is at school, they run into a random other character at school
+event: fire drill
+event: prom
+
+
+UNFORTUNATE RULE: the game state can't contain functions
+
+
+
+
+
+
+could use pushState to put the game state in the url bar in a way where reloading my code is more convenient
+
+
+
+
+
+
+    //game_state.current_event = game_state.todo.pop();
+    /*
+    
+Eli.actions = {
+  ask_out: function(who) {
+  }
+}
+
+   {
+      when: ,
+      tags: ['romance', 'ask_out']
+      description: "Ask out " + who,
+      do: ['ask_out', [who]]
+    }
