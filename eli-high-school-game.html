@@ -13,16 +13,12 @@ h1,h2,h3,h4,h5,h6 {font-size: 100%;font-weight: inherit;}
 img {color: transparent; font-size: 0; border: 0; vertical-align: middle;
      -ms-interpolation-mode: bicubic;}
 
-html, body {
-  font-size: 30px;
+html {
+  font-size: 2em;
 }
 
-/* Eli's CSS can go here */
-.feeling-bar {
-  font-family: monospace;
-}
 #player_viewport {
-  max-width: 700px;
+  max-width: 30em;
   margin: 1em auto;
 }
 #player_viewport > a {
@@ -33,6 +29,16 @@ html, body {
   float: right;
   padding: 1em;
   border: 2px solid green; /* what if color depended on mood */
+  font-size: 0.8em;
+}
+.status-bars {
+  margin-bottom: 0.8em;
+}
+.status-bar {
+  font-family: monospace;
+}
+.example-symbol {
+  opacity: 0.3;
 }
 </style>
 </head>
@@ -207,9 +213,113 @@ var Bob = {
   ],
   location: 'school',
   old_messages: [],
-  messages: []
+  messages: [],
+  status: {
+    confidence: 2,
+    excitement: -1
+  }
 };
 game_state.characters.push(Bob);
+
+Eli.symbol = function(text_content, text_color, background_color) {
+  return $('<span/>').css({
+      "color": text_color,
+      "background-color": background_color
+    }).text(text_content).prop('outerHTML');
+};
+Eli.status_max = 3;
+Eli.neutral_status_symbol = Eli.symbol('0', '#bbb', '#555');
+Eli.general_status_types_list = [{
+    id: 'confidence',
+    positive: {
+        name: "confident",
+        symbol: Eli.symbol('+', 'white', 'blue')
+    },
+    negative: {
+        name: "crushed",
+        symbol: Eli.symbol('-', 'blue', 'black')
+    }
+  },
+  {
+    id: 'excitement',
+    positive: {
+      name: "excited",
+      symbol: Eli.symbol('!', 'yellow', 'red')
+    },
+    negative: {
+      name: "calm",
+      symbol: Eli.symbol('~', 'blue', '#ccf')
+    }
+  }
+];
+Eli.general_status_types = {};
+Eli.status_types = {};
+Eli.max_status_name_length = 0;
+for (var i = 0; i < Eli.general_status_types_list.length; ++i) {
+  var status = Eli.general_status_types_list[i];
+  Eli.general_status_types[status.id] = status;
+  Eli.status_types[status.positive.name] = status.positive;
+  Eli.status_types[status.negative.name] = status.negative;
+  status.positive.opposite = status.negative;
+  status.negative.opposite = status.positive;
+  status.positive.general = status;
+  status.negative.general = status;
+  status.positive.sign = 1;
+  status.negative.sign = -1;
+  Eli.max_status_name_length = Math.max(Eli.max_status_name_length,
+    status.positive.name.length, status.negative.name.length);
+}
+
+function get_status(character, status_name) {
+  var status_type = Eli.status_types[status_name];
+  return character.status[status_type.general.id] * status_type.sign;
+}
+function set_status(character, status_name, value) {
+  assert(Math.round(value) === value && Math.abs(value) < Eli.status_max);
+  var status_type = Eli.status_types[status_name];
+  character.status[status_type.general.id] = value * status_type.sign;
+  assert(get_status(character, status_name) === value);
+}
+
+// assumes monospace
+Eli.pad_left = function(html_text, count, pad_character) {
+  var text_length = $('<div/>').html(html_text).text().length;
+  if (pad_character === undefined) { pad_character = '&nbsp;'; }
+  return (pad_character.repeat(count - text_length) + html_text);
+};
+Eli.pad_right = function(html_text, count, pad_character) {
+  var text_length = $('<div/>').html(html_text).text().length;
+  if (pad_character === undefined) { pad_character = '&nbsp;'; }
+  return (html_text + pad_character.repeat(count - text_length));
+};
+function example_symbol(symbol) {
+  return $('<span/>').addClass('example-symbol').html(symbol).prop('outerHTML');
+}
+Eli.status_bar = function(character, general_status_type) {
+  var negative_points = Math.max(0, -character.status[general_status_type.id]);
+  var positive_points = Math.max(0, character.status[general_status_type.id]);
+  return $('<span/>').addClass('status-bar').html(
+    Eli.pad_left(general_status_type.negative.name, Eli.max_status_name_length+2) + ' ' + example_symbol(general_status_type.negative.symbol) +
+    ' [' + Eli.pad_left(general_status_type.negative.symbol.repeat(negative_points), Eli.status_max) +
+    Eli.neutral_status_symbol +
+    Eli.pad_right(general_status_type.positive.symbol.repeat(positive_points), Eli.status_max) + '] ' +
+    example_symbol(general_status_type.positive.symbol) + ' ' + Eli.pad_right(general_status_type.positive.name, Eli.max_status_name_length+2)
+    );
+};
+Eli.status_area = function(character) {
+  var $status_bars = $('<div/>').addClass('status-bars');
+  for (var i = 0; i < Eli.general_status_types_list.length; ++i) {
+    var general_status_type = Eli.general_status_types_list[i];
+    if (_.has(character.status, general_status_type.id)) {
+      $status_bars.append($('<div/>').append(Eli.status_bar(character, general_status_type)));
+    }
+  }
+  return $('<div/>').addClass('status-area').append(
+    $status_bars,
+    $('<p/>').text("You are at " + character.location + '.')
+  );
+};
+
 
 
 // what if choices emit a [actor, location, what-you-did-tag]
@@ -255,11 +365,6 @@ function make_choice_automatically(event) {
   }
 }
 
-function status_area(character) {
-  return $('<div/>').addClass('status-area').append(
-    $('<p/>').text("You are at " + character.location + '.')
-  );
-}
 
 function get_to_the_next_point_where_a_player_character_has_a_choice() {
   while(true) {
@@ -275,10 +380,10 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
   $vp.empty();
   // if not the first turn, $vp.append($('<h2/>').text("Congratulations on your choice.");
   var event = current_event();
+  $vp.append(Eli.status_area(event.actor));
   _.each(event.actor.messages, function(message) {
     $vp.append($('<p/>').text(message));
   });
-  $vp.append(status_area(event.actor));
   $vp.append($('<h2/>').text("You have a choice!!!!!"));
   _.each(get_character_choices(event), function(choice) {
     $vp.append($('<a/>').attr('href', '#javascript').text(choice.name).css({opacity: 0}).animate({opacity: 1}).on('click', function(e) {
