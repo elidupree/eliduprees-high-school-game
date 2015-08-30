@@ -83,6 +83,7 @@ Eli.traits = {
       tags: ['daydream'],
       do: function(dilemma) {
         dilemma.actor.messages.push("You daydream about popsicles.");
+        return 'popsicle';
       }
     }
   },
@@ -95,6 +96,7 @@ Eli.traits = {
         do: function(dilemma) {
           var score = (Math.round(Math.pow(1.03, _.random(2, 1000))) + 2);
           dilemma.actor.messages.push("You score " + score + " points!");
+          return ['score', (score > 1000000 ? 'high score' : null)];
         }
       }; }
     }
@@ -102,10 +104,10 @@ Eli.traits = {
   video_gaming_affects_your_status: function(status_id_to_buff, amount) { return {
     description: ("When you play video games, you feel more " + status_id_to_buff
        + ". " + Eli.status_buff_symbols(status_id_to_buff, amount)),
-    effect: function(dilemma, option) {
-      if(_.contains(option.tags, 'video_games')) {
-        increment_status(dilemma.actor, status_id_to_buff, amount);
-        dilemma.actor.messages.push("You feel more " + status_id_to_buff + "! " +
+    effect: function(character, tags) {
+      if(_.contains(tags, 'video_games')) {
+        increment_status(character, status_id_to_buff, amount);
+        character.messages.push("You feel more " + status_id_to_buff + "! " +
           Eli.status_buff_symbols(status_id_to_buff, amount));
       }
     }
@@ -364,6 +366,14 @@ function dilemma_requires_player_input(dilemma) {
   return true;
 }
 
+function make_tags_happen_to_character(character, tags) {
+  _.each(_.map(character.traits, look_up_trait), function(trait) {
+    if(trait.effect) {
+      trait.effect(character, tags);
+    }
+  });
+}
+
 // returns true if succeeded
 function try_to_make_choice(dilemma, option) {
   // check patterns to see if option works [for now, always]
@@ -374,13 +384,9 @@ function try_to_make_choice(dilemma, option) {
     if(!option.instant) {
       var d = game_state.todo.pop(); assert(d == dilemma);
     }
-    option.do(dilemma);
-    _.each(dilemma.actor.traits, function(t) {
-      var trait = look_up_trait(t);
-      if(trait.effect) {
-        trait.effect(dilemma, option);
-      }
-    });
+    var result_tags = option.do(dilemma);
+    var tags = _.uniq(_.filter(_.flatten([option.tags, result_tags]), _.isString));
+    make_tags_happen_to_character(dilemma.actor, tags);
   }
   return succeeded;
 }
