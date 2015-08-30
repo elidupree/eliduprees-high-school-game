@@ -148,6 +148,28 @@ Eli.traits = {
       }; }
     }
   },
+  i_hate_school: {
+    description: "You don't always go to school because you don't like it.",
+    pattern: function(dilemma, option) {
+      if(_.contains(option.tags, 'go_to_school')) {
+        if(_.random(0,1) === 0) {
+          dilemma.actor.messages.push("You decide against going to school.");
+          return 'fail';
+        }
+      }
+    }
+  },
+  too_calm_to_swear: {
+    description: "You only swear when you're excitable.",
+    pattern: function(dilemma, option) {
+      if(_.contains(option.tags, 'swear')) {
+        if(get_status(dilemma.actor, 'calm') + _.random(-1, 1) > 1) {
+          dilemma.actor.messages.push("You are too calm to feel like swearing.");
+          return 'fail';
+        }
+      }
+    }
+  },
   go_to_home: {
     description: "You can go home.",
     options: function(dilemma) {
@@ -228,13 +250,16 @@ Eli.game_state = {
 var game_state = Eli.game_state;
 
 var Bob = {
+  name: "Bob",
   traits: [
     'daydream',
     'video_gaming',
     ['video_gaming_affects_your_status', 'confident'],
     'swear',
     'go_to_school',
-    'go_to_home'
+    'go_to_home',
+    'i_hate_school',
+    'too_calm_to_swear'
   ],
   location: 'school',
   old_messages: [],
@@ -401,21 +426,36 @@ function make_tags_happen_to_character(character, tags) {
 
 // returns true if succeeded
 function try_to_make_choice(dilemma, option) {
-  // check patterns to see if option works [for now, always]
-  // apply any effects that were triggered by simply choosing that option (before do()?)
-  var succeeded = _.random(0,10) > 3;
+  var character = dilemma.actor;
   dilemma.already_tried[option.name] = true;
+
+  //var succeeded = _.random(0,10) > 3;
+  var succeeded = true;
+  //var message_index = character.messages.length;
+  //character.messages.push($('<p/>').addClass('chosen').text('You try to '+option.name+', but...').prop('outerHTML'));
+  //character.messages.push($('<p/>').addClass('chosen').text('You try to '+option.name+'.').prop('outerHTML'));
+  // You reluctantly ___»«
+  character.messages.push($('<p/>').addClass('chosen').text('» '+option.name+' «').prop('outerHTML'));
+  _.find(_.map(character.traits, look_up_trait), function(trait) {
+    if(trait.pattern) {
+      if(trait.pattern(dilemma, option) === 'fail') {
+         succeeded = false;
+         return true; // break
+      }
+    }
+  });
+
   if (succeeded) {
     if(!option.instant) {
       var d = game_state.todo.pop(); assert(d == dilemma);
     }
-    dilemma.actor.messages.push($('<p/>').addClass('chosen').text('You '+option.name+'.').prop('outerHTML'));
+    //character.messages[message_index] = $('<p/>').addClass('chosen').text('You '+option.name+'.').prop('outerHTML');
     var result_tags = option.do(dilemma);
     var tags = _.uniq(_.filter(_.flatten([option.tags, result_tags]), _.isString));
-    make_tags_happen_to_character(dilemma.actor, tags);
+    make_tags_happen_to_character(character, tags);
   } else {
-    dilemma.actor.messages.push($('<p/>').addClass('chosen').text('You try to '+option.name+', but......').prop('outerHTML'));
   }
+
   return succeeded;
 }
 

@@ -361,6 +361,34 @@ could use pushState to put the game state in the url bar in a way where reloadin
 
 
 
+a status bar could sometimes be replaced with "You don't want to think about this."
+grades, for example, or whatever feeling you're struggling with depending how you're feeling about that
+
+
+You struggle to be _____ when you ____.
+
+Unless you ++, it's hard to ____.
+
+
+Fails if you're
+Succeeds if you're
+Succeeds if you're not
+
+Try to be a little crushed
+Try not to be even a little crushed
+Try not to be crushed
+Try not to be at all crushed
+Try to be slightly excited
+
+You must 
+You can't be 
+very crushed
+even a little crushed
+at all crushed
+somewhat crushed
+
+too crushed
+
  /* what if color of status box border depended on mood */
 
 
@@ -381,3 +409,5 @@ Eli.actions = {
       description: "Ask out " + who,
       do: ['ask_out', [who]]
     }
+
+    
