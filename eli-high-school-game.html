@@ -80,6 +80,26 @@ p.chosen {
   margin-top: 1em;
   margin-bottom: 0.1em;
 }
+@media (max-width: 60em) {
+.trait-list {
+  display: none;
+}
+.status-area-wrapper {
+  float: none;
+  display: block;
+}
+.status-area {
+  margin: 0;
+  border-width: 0 0 2px;
+  width: 100%;
+}
+#player_viewport {
+  margin: 0;
+}
+.main {
+  margin: 0.5em 1em;
+}
+}
 </style>
 </head>
 <body>
@@ -482,7 +502,7 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
   var $status_area_wrapper = $('<div/>').addClass('status-area-wrapper').append($old_status_area, $new_status_area);
   $new_status_area.css({opacity: 0}).animate({opacity: 1}, function() { $old_status_area.remove(); });
   $vp.append($status_area_wrapper);
-  var $main = $('<div/>').css({opacity: 0}).animate({opacity: 1});
+  var $main = $('<div/>').addClass('main').css({opacity: 0}).animate({opacity: 1});
   _.each(dilemma.actor.messages, function(message) {
     $main.append($('<p/>').html(Eli.check_message_html(message)));
   });
