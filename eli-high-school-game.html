@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <title>High School Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<!--[if lt IE 9]>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.2/html5shiv-printshiv.min.js"></script>
+<![endif]-->
 <style>
 /* CSS reset */
 article,aside,figure,footer,header,hgroup,menu,nav,section { display:block; }
@@ -21,9 +24,22 @@ html {
   max-width: 30em;
   margin: 1em auto;
 }
-a.option {
-  display: block;
+.option-wrapper {
   margin: 1em 1em;
+}
+a.option {
+  display: inline-block;
+  text-decoration: none;
+  font-weight: bold;
+  color: #68f;
+}
+a.option:hover, a.option:active, a.option:focus {
+  color: #d4f;
+  text-shadow: 0 0 0.06em #94f;
+}
+a.option.already-tried {
+  text-decoration: line-through;
+  color: #666;
 }
 .description-of-dilemma {
   margin: 1em 0;
@@ -56,6 +72,11 @@ a.option {
 }
 .example-symbol {
   opacity: 0.3;
+}
+p.chosen {
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 0.1em;
 }
 </style>
 </head>
@@ -183,9 +204,6 @@ function get_trait_options(dilemma, trait) {
   if (!_.isArray(c)) {
     c = [c];
   }
-  c = _.filter(c, function(option) {
-    return !dilemma.already_tried[option.name];
-  });
   return c;
 }
 
@@ -193,6 +211,11 @@ function get_character_options(dilemma) {
   return _.flatten(_.map(dilemma.actor.traits, function(t) {
     return get_trait_options(dilemma, look_up_trait(t));
   }), true);
+}
+function get_remaining_character_options(dilemma) {
+  return _.filter(get_character_options(dilemma), function(option) {
+    return !dilemma.already_tried[option.name];
+  });
 }
 
 Eli.game_state = {
@@ -227,7 +250,7 @@ game_state.characters.push(Bob);
 // innerHTML= or more specifically,
 // $(...).html(Eli.check_message_html(....))
 Eli.check_message_html = function(message) {
-  if(!/^([^<>&]*(&lt;|&gt;|&amp;|&quot;|<span( style="((color|background-color): [a-zA-Z0-9#%() ,]*(;|(?= *")) *)*")?>|<\/span>))*[^<>&]*$/.test(message)) {
+  if(!/^([^<>&]*(&lt;|&gt;|&amp;|&quot;|<p class="chosen">|<\/p>|<span( style="((color|background-color): [a-zA-Z0-9#%() ,]*(;|(?= *")) *)*")?>|<\/span>))*[^<>&]*$/.test(message)) {
     throw "Uncheckable message: " + message;
   }
   return message;
@@ -342,7 +365,7 @@ Eli.status_area = function(character) {
   _.each(_.map(character.traits, look_up_trait), function(trait) {
     $traits.append($('<p/>').html(Eli.check_message_html(trait.description)));
   });
-  return $('<div/>').addClass('status-area').append(
+  return $('<aside/>').addClass('status-area').append(
     $status_bars,
     $('<p/>').text("You are at " + character.location + '.'),
     $traits
@@ -363,7 +386,7 @@ function current_dilemma() {
 }
 
 function dilemma_requires_player_input(dilemma) {
-  return true;
+  return _.random(0,1) === 0;
 }
 
 function make_tags_happen_to_character(character, tags) {
@@ -378,23 +401,24 @@ function make_tags_happen_to_character(character, tags) {
 function try_to_make_choice(dilemma, option) {
   // check patterns to see if option works [for now, always]
   // apply any effects that were triggered by simply choosing that option (before do()?)
-  var succeeded = true;
+  var succeeded = _.random(0,10) > 3;
   dilemma.already_tried[option.name] = true;
   if (succeeded) {
     if(!option.instant) {
       var d = game_state.todo.pop(); assert(d == dilemma);
     }
+    dilemma.actor.messages.push($('<p/>').addClass('chosen').text('You '+option.name+'.').prop('outerHTML'));
     var result_tags = option.do(dilemma);
     var tags = _.uniq(_.filter(_.flatten([option.tags, result_tags]), _.isString));
     make_tags_happen_to_character(dilemma.actor, tags);
+  } else {
+    dilemma.actor.messages.push($('<p/>').addClass('chosen').text('You try to '+option.name+', but......').prop('outerHTML'));
   }
   return succeeded;
 }
 
 function make_choice_automatically(dilemma) {
-  if (!try_to_make_choice(dilemma, _.sample(get_character_options(dilemma)))) {
-    game_state.todo.push(dilemma);
-  }
+  try_to_make_choice(dilemma, _.sample(get_remaining_character_options(dilemma)));
 }
 
 function get_to_the_next_point_where_a_player_character_has_a_choice() {
@@ -422,15 +446,21 @@ function get_to_the_next_point_where_a_player_character_has_a_choice() {
   });
   $main.append($('<p/>').addClass('description-of-dilemma').text("You have a choice!!!!!"));
   _.each(get_character_options(dilemma), function(option) {
-    $main.append($('<a/>').addClass('option').attr('href', '#javascript').text(option.name).on('click', function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      // should this happen always? or just on success
-      Array.prototype.push.apply(dilemma.actor.old_messages, dilemma.actor.messages);
-      dilemma.actor.messages = [];
-      var succeeded = try_to_make_choice(dilemma, option);
-      get_to_the_next_point_where_a_player_character_has_a_choice();
-    }));
+    var available = !dilemma.already_tried[option.name];
+    if(available) {
+      var $option = $('<a/>').attr('href', '#javascript').addClass('option').text(option.name).on('click', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        // should this happen always? or just on success
+        Array.prototype.push.apply(dilemma.actor.old_messages, dilemma.actor.messages);
+        dilemma.actor.messages = [];
+        var succeeded = try_to_make_choice(dilemma, option);
+        get_to_the_next_point_where_a_player_character_has_a_choice();
+      });
+    } else {
+      var $option = $('<a/>').addClass('option').text(option.name).addClass('already-tried');
+    }
+    $main.append($('<div/>').addClass('option-wrapper').append($option));
   });
   $vp.append($main);
 }
