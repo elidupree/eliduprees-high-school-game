@@ -63,6 +63,10 @@ a.option.already-tried {
   top: 0;
   left: 0;
 }
+.status-character-name {
+  font-weight: bold;
+  text-align: center;
+}
 .status-bars {
   margin-bottom: 0.8em;
 }
@@ -427,6 +431,7 @@ Eli.status_bar = function(character, general_status_type) {
     );
 };
 Eli.status_area = function(character) {
+  var $who = $('<div/>').addClass('status-character-name').text(character.name);
   var $status_bars = $('<div/>').addClass('status-bars');
   for (var i = 0; i < Eli.general_status_types_list.length; ++i) {
     var general_status_type = Eli.general_status_types_list[i];
@@ -443,8 +448,10 @@ _.each (character.relationships, function (relationship) {
 $relationships.append ($("<p/>").text (relationship [0] + " is your "+ relationship [1]));
 });
   return $('<aside/>').addClass('status-area').append(
+    $who,
     $status_bars,
     $('<p/>').text("You are at " + character.location + '.'),
+    $relationships,
     $traits
   );
 };
