@@ -265,7 +265,8 @@ function get_remaining_character_options(dilemma) {
 Eli.game_state = {
   todo: [], // a stack that you push/pop on the end
   phase: 0,
-  characters: [] // order doesn't matter?
+characters: {},  
+characters_list: [] // order doesn't matter?
 };
 var game_state = Eli.game_state;
 
@@ -287,10 +288,35 @@ var Bob = {
   status: {
     confidence: 2,
     excitement: -1
-  }
+  },
+relationships: []
 };
-game_state.characters.push(Bob);
 
+function make_character (character) {
+game_state.characters_list.push (character);
+game_state.characters [character.name] = character;
+}
+make_character (Bob);
+for (var whatever = 0; whatever <100;++ whatever) {
+var character = {name: whatever + " ", traits: [], location: "home", old_messages: [], messages: [], status: {}, relationships: []};
+character.traits.push ("daydream");
+character.traits.push ("go_to_school");
+character.traits.push ("go_to_home");
+
+make_character (character);
+}
+
+for (var whatever = 0; whatever <100;++ whatever) {
+var bottle_1 =_.random (0, game_state.characters_list.length-1);
+var bottle_2 =_.random (0, game_state.characters_list.length-1);
+if (bottle_1!== bottle_2) {
+var character_1 =game_state.characters_list [bottle_1];
+var character_2 = game_state.characters_list [bottle_2];
+var relationship = "friend";
+character_1.relationships.push ([character_2.name, relationship]);
+character_2.relationships.push ([character_1.name, relationship]);
+}
+}
 
 // Make sure save games can't run scripts or stuff.
 // The result of this function will be passed to
@@ -412,6 +438,10 @@ Eli.status_area = function(character) {
   _.each(_.map(character.traits, look_up_trait), function(trait) {
     $traits.append($('<p/>').html(Eli.check_message_html(trait.description)));
   });
+var $relationships = $("<div/>").addClass ("relationship_list");
+_.each (character.relationships, function (relationship) {
+$relationships.append ($("<p/>").text (relationship [0] + " is your "+ relationship [1]));
+});
   return $('<aside/>').addClass('status-area').append(
     $status_bars,
     $('<p/>').text("You are at " + character.location + '.'),
@@ -422,7 +452,7 @@ Eli.status_area = function(character) {
 function possibly_go_to_the_next_phase() {
   if(game_state.todo.length === 0) {
     game_state.phase += 1;
-    _.each(_.shuffle(game_state.characters), function(c) {
+    _.each(_.shuffle(game_state.characters_list), function(c) {
       game_state.todo.push({ actor: c, already_tried: {}});
     });
   }
