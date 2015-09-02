@@ -111,6 +111,9 @@ p.chosen {
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<!-- name source: US Census: -->
+<script src="among_female_usians_pretty_uncommon_names.js"></script>
+<script src="among_male_usians_pretty_uncommon_names.js"></script>
 <script>
 (function () {
 "use strict";
@@ -293,21 +296,33 @@ var Bob = {
     confidence: 2,
     excitement: -1
   },
-relationships: []
+  relationships: []
 };
 
 function make_character (character) {
-game_state.characters_list.push (character);
-game_state.characters [character.name] = character;
+  game_state.characters_list.push (character);
+  game_state.characters [character.name] = character;
 }
+
+function random_unused_name() {
+  var name_list = _.sample([Eli_male_names, Eli_female_names]);
+  for(var i = 1; i < 1000; ++i) {
+    var prospective_name = _.sample(name_list);
+    if (game_state.characters[prospective_name] === undefined) {
+      return prospective_name;
+    }
+  }
+  throw "Couldn't find unique name"
+}
+
 make_character (Bob);
 for (var whatever = 0; whatever <100;++ whatever) {
-var character = {name: whatever + " ", traits: [], location: "home", old_messages: [], messages: [], status: {}, relationships: []};
-character.traits.push ("daydream");
-character.traits.push ("go_to_school");
-character.traits.push ("go_to_home");
+  var character = {name: random_unused_name(), traits: [], location: "home", old_messages: [], messages: [], status: {}, relationships: []};
+  character.traits.push ("daydream");
+  character.traits.push ("go_to_school");
+  character.traits.push ("go_to_home");
 
-make_character (character);
+  make_character (character);
 }
 
 for (var whatever = 0; whatever <100;++ whatever) {
